@@ -30,22 +30,24 @@ HTML = """
 def home():
     return render_template_string(HTML)
 
-@app.route("/scan", methods=["POST"])
+@app.route("/scan", methods=["GET", "POST"])
 def scan():
-    target = request.form.get("target")
-    try:
-        # Run aggressive Nmap scan (-A)
-        result = subprocess.check_output(
-            ["nmap", "-A", "-Pn", target],
-            text=True,
-            stderr=subprocess.STDOUT,
-            timeout=180  # max 3 min per scan
-        )
-    except subprocess.CalledProcessError as e:
-        result = f"Error during scan:\n{e.output}"
-    except subprocess.TimeoutExpired:
-        result = "Error: Scan took too long and was stopped."
-
+    result = None
+    target = None
+    if request.method == "POST":
+        target = request.form.get("target")
+        try:
+            # Aggressive scan with Nmap, skip ping
+            result = subprocess.check_output(
+                ["nmap", "-A", "-Pn", target],
+                text=True,
+                stderr=subprocess.STDOUT,
+                timeout=180  # 3 minutes max
+            )
+        except subprocess.CalledProcessError as e:
+            result = f"Error during scan:\n{e.output}"
+        except subprocess.TimeoutExpired:
+            result = "Error: Scan took too long and was stopped."
     return render_template_string(HTML, result=result, target=target)
 
 if __name__ == "__main__":
