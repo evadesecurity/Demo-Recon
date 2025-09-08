@@ -2,90 +2,55 @@
 <html>
 <head>
     <title>All-in-One Recon Demo 🚀</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .section { margin-bottom: 20px; }
-        .hidden { display: none; }
-        button { padding: 6px 10px; border: none; background: #007BFF; color: white; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background: #f4f4f4; }
-    </style>
 </head>
 <body>
-    <h2>All-in-One Recon Demo 🚀</h2>
-    <form method="POST">
-        <label>Enter Domain or IP:</label><br>
-        <input type="text" name="target" required style="padding:6px; width:320px;">
+    <h1>All-in-One Recon Demo 🚀</h1>
+    <form method="post">
+        <label>Enter Domain or IP:</label>
+        <input type="text" name="target" required>
         <button type="submit">Scan</button>
     </form>
 
     {% if target %}
-    <h3>Results for: {{ target }}</h3>
+        <h2>Results for: {{ target }}</h2>
 
-    <!-- Subdomains Section -->
-    <div class="section">
-        <h4>Subdomains</h4>
-        <ul>
-            {% for sub in subdomains[:4] %}
-                <li>{{ sub }}</li>
-            {% endfor %}
-        </ul>
-        {% if subdomains|length > 4 %}
-            <ul id="more-subs" class="hidden">
-                {% for sub in subdomains[4:] %}
+        <h3>Subdomains</h3>
+        {% if subdomains %}
+            <ul>
+                {% for sub in subdomains[:5] %}
                     <li>{{ sub }}</li>
                 {% endfor %}
             </ul>
-            <button type="button" onclick="toggleSection('more-subs', this)">View More</button>
+            {% if subdomains|length > 5 %}
+                <button onclick="document.getElementById('all-subs').style.display='block'">View More</button>
+                <ul id="all-subs" style="display:none;">
+                    {% for sub in subdomains[5:] %}
+                        <li>{{ sub }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% else %}
+            <p>No subdomains found</p>
         {% endif %}
-    </div>
 
-    <!-- Nmap Section -->
-    <div class="section">
-        <h4>Port Scan (Nmap)</h4>
-        <table>
-            <tr><th>Port</th><th>Proto</th><th>State</th><th>Service</th><th>Version</th></tr>
-            {% for port in ports[:4] %}
-                <tr>
-                    <td>{{ port.port }}</td>
-                    <td>{{ port.protocol }}</td>
-                    <td>{{ port.state }}</td>
-                    <td>{{ port.service }}</td>
-                    <td>{{ port.version }}</td>
-                </tr>
-            {% endfor %}
-        </table>
-        {% if ports|length > 4 %}
-            <table id="more-ports" class="hidden" style="margin-top:10px;">
-                <tr><th>Port</th><th>Proto</th><th>State</th><th>Service</th><th>Version</th></tr>
-                {% for port in ports[4:] %}
-                    <tr>
-                        <td>{{ port.port }}</td>
-                        <td>{{ port.protocol }}</td>
-                        <td>{{ port.state }}</td>
-                        <td>{{ port.service }}</td>
-                        <td>{{ port.version }}</td>
-                    </tr>
-                {% endfor %}
-            </table>
-            <button type="button" onclick="toggleSection('more-ports', this)">View More</button>
+        <h3>Port Scan (Nmap)</h3>
+        {% if ports %}
+            <pre>
+{% for line in ports[:10] %}
+{{ line }}
+{% endfor %}
+            </pre>
+            {% if ports|length > 10 %}
+                <button onclick="document.getElementById('all-ports').style.display='block'">View More</button>
+                <pre id="all-ports" style="display:none;">
+{% for line in ports[10:] %}
+{{ line }}
+{% endfor %}
+                </pre>
+            {% endif %}
+        {% else %}
+            <p>No ports found</p>
         {% endif %}
-    </div>
     {% endif %}
-
-    <script>
-        function toggleSection(id, btn) {
-            let section = document.getElementById(id);
-            if (section.classList.contains("hidden")) {
-                section.classList.remove("hidden");
-                btn.innerText = "View Less";
-            } else {
-                section.classList.add("hidden");
-                btn.innerText = "View More";
-            }
-        }
-    </script>
 </body>
 </html>
