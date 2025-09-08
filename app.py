@@ -39,7 +39,7 @@ def scan():
         try:
             # Aggressive scan with Nmap, skip ping
             result = subprocess.check_output(
-                ["nmap", "-sT", "-A", "-Pn", target],
+                ["nmap", "-sT", "-p-", "-sV", "-Pn", target],
                 text=True,
                 stderr=subprocess.STDOUT,
                 timeout=180  # 3 minutes max
