@@ -25,7 +25,7 @@ def index():
         # Run nmap (TCP connect scan, service detection, version)
         try:
             result = subprocess.run(
-                ["nmap", "-sT", "-sV", target],
+                ["nmap", "-sT", "-sV", "-Pn", target],
                 capture_output=True, text=True, check=True
             )
             ports = result.stdout.splitlines()
