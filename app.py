@@ -1,37 +1,47 @@
-from flask import Flask, request, jsonify
-import socket
-import requests
+from flask import Flask, request, render_template_string
+import subprocess
 
 app = Flask(__name__)
 
-@app.route("/")
+# Simple HTML template
+HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Demo Recon Tool</title>
+</head>
+<body>
+    <h1>Demo Recon Tool 🚀</h1>
+    <form method="POST" action="/scan">
+        <label>Enter Domain or IP:</label>
+        <input type="text" name="target" required>
+        <button type="submit">Run Aggressive Nmap Scan</button>
+    </form>
+
+    {% if result %}
+    <h2>Scan Result:</h2>
+    <pre>{{ result }}</pre>
+    {% endif %}
+</body>
+</html>
+"""
+
+@app.route("/", methods=["GET"])
 def home():
-    return "Demo Recon Tool is Running 🚀"
+    return render_template_string(HTML)
 
-@app.route("/recon", methods=["GET"])
-def recon():
-    target = request.args.get("target")
-    if not target:
-        return jsonify({"error": "Please provide a domain or IP using ?target="}), 400
-
+@app.route("/scan", methods=["POST"])
+def scan():
+    target = request.form.get("target")
     try:
-        # Resolve IP
-        ip = socket.gethostbyname(target)
+        # Run aggressive Nmap scan (-A)
+        result = subprocess.check_output(["nmap", "-A", target], text=True, stderr=subprocess.STDOUT, timeout=120)
+    except subprocess.CalledProcessError as e:
+        result = f"Error: {e.output}"
+    except subprocess.TimeoutExpired:
+        result = "Error: Scan took too long and was stopped."
 
-        # HTTP status check
-        try:
-            r = requests.get(f"http://{target}", timeout=5)
-            status = r.status_code
-        except Exception as e:
-            status = str(e)
-
-        return jsonify({
-            "domain": target,
-            "resolved_ip": ip,
-            "http_status": status
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return render_template_string(HTML, result=result)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(port=8080)
