@@ -71,19 +71,17 @@ def run_nmap(target):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    subdomains = []
+    ports = []
     target = None
-    subdomains = None
-    nmap_results = []
 
     if request.method == "POST":
         target = request.form["target"]
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            subdomain_future = executor.submit(run_subfinder, target)
-            nmap_future = executor.submit(run_nmap, target)
-
-            subdomains = subdomain_future.result()
-            nmap_results = nmap_future.result()
+        # Your logic for running subfinder/nmap etc
+        # Example:
+        # subdomains = run_subfinder(target)
+        # ports = run_nmap(target)
 
     return render_template("index.html", subdomains=subdomains, ports=ports, target=target)
 
