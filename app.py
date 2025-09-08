@@ -85,7 +85,7 @@ def index():
             subdomains = subdomain_future.result()
             nmap_results = nmap_future.result()
 
-    return render_template_string(HTML_TEMPLATE, target=target, subdomains=subdomains, nmap_results=nmap_results)
+    return render_template("index.html", subdomains=subdomains, ports=ports, target=target)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
