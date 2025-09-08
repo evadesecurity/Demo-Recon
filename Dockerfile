@@ -7,11 +7,11 @@ WORKDIR /app
 # Copy requirements
 COPY requirements.txt requirements.txt
 
-# Install Python dependencies
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install subfinder
-RUN apt-get update && apt-get install -y wget unzip && \
+# Install Nmap and Subfinder
+RUN apt-get update && apt-get install -y nmap wget unzip && \
     wget https://github.com/projectdiscovery/subfinder/releases/download/v2.6.6/subfinder_2.6.6_linux_amd64.zip && \
     unzip subfinder_2.6.6_linux_amd64.zip && \
     mv subfinder /usr/local/bin/ && \
