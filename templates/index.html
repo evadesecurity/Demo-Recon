@@ -1,56 +1,151 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>All-in-One Recon Demo 🚀</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All-in-One Recon Demo 🚀</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f4f6f9;
+    }
+    .container {
+      margin-top: 40px;
+      max-width: 900px;
+    }
+    .card {
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .btn-toggle {
+      margin-top: 10px;
+    }
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #777;
+      font-size: 14px;
+    }
+  </style>
 </head>
 <body>
-    <h1>All-in-One Recon Demo 🚀</h1>
-    <form method="post">
-        <label>Enter Domain or IP:</label>
-        <input type="text" name="target" required>
-        <button type="submit">Scan</button>
-    </form>
+  <div class="container">
+    <h1 class="text-center mb-4">🔍 All-in-One Recon Demo 🚀</h1>
+
+    <!-- Input Form -->
+    <div class="card p-4">
+      <form method="POST" action="/">
+        <div class="input-group">
+          <input type="text" name="target" class="form-control" placeholder="Enter Domain or IP" required>
+          <button class="btn btn-primary" type="submit">Scan</button>
+        </div>
+      </form>
+    </div>
 
     {% if target %}
-        <h2>Results for: {{ target }}</h2>
+    <h3 class="text-center my-4">Results for: <span class="text-primary">{{ target }}</span></h3>
 
-        <h3>Subdomains</h3>
-        {% if subdomains %}
-            <ul>
-                {% for sub in subdomains[:5] %}
-                    <li>{{ sub }}</li>
-                {% endfor %}
+    <!-- Subdomains -->
+    <div class="card p-4">
+      <h4>🌐 Subdomains</h4>
+      {% if subdomains %}
+        <ul class="list-group">
+          {% for sub in subdomains[:5] %}
+            <li class="list-group-item">{{ sub }}</li>
+          {% endfor %}
+        </ul>
+        {% if subdomains|length > 5 %}
+          <div id="more-subs" style="display:none;">
+            <ul class="list-group">
+              {% for sub in subdomains[5:] %}
+                <li class="list-group-item">{{ sub }}</li>
+              {% endfor %}
             </ul>
-            {% if subdomains|length > 5 %}
-                <button onclick="document.getElementById('all-subs').style.display='block'">View More</button>
-                <ul id="all-subs" style="display:none;">
-                    {% for sub in subdomains[5:] %}
-                        <li>{{ sub }}</li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-        {% else %}
-            <p>No subdomains found</p>
+          </div>
+          <button id="toggleSubs" class="btn btn-outline-primary btn-sm btn-toggle" onclick="toggleSubs()">View More</button>
         {% endif %}
+      {% else %}
+        <p class="text-muted">No subdomains found.</p>
+      {% endif %}
+    </div>
 
-        <h3>Port Scan (Nmap)</h3>
-        {% if ports %}
-            <pre>
-{% for line in ports[:10] %}
-{{ line }}
-{% endfor %}
-            </pre>
-            {% if ports|length > 10 %}
-                <button onclick="document.getElementById('all-ports').style.display='block'">View More</button>
-                <pre id="all-ports" style="display:none;">
-{% for line in ports[10:] %}
-{{ line }}
-{% endfor %}
-                </pre>
-            {% endif %}
-        {% else %}
-            <p>No ports found</p>
+    <!-- Nmap Ports -->
+    <div class="card p-4">
+      <h4>⚡ Port Scan (Nmap)</h4>
+      {% if ports %}
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>Port</th>
+              <th>State</th>
+              <th>Service</th>
+              <th>Version</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for port in ports[:5] %}
+              <tr>
+                <td>{{ port.port }}/tcp</td>
+                <td>{{ port.state }}</td>
+                <td>{{ port.service }}</td>
+                <td>{{ port.version }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% if ports|length > 5 %}
+          <div id="more-ports" style="display:none;">
+            <table class="table table-striped table-hover">
+              <tbody>
+                {% for port in ports[5:] %}
+                  <tr>
+                    <td>{{ port.port }}/tcp</td>
+                    <td>{{ port.state }}</td>
+                    <td>{{ port.service }}</td>
+                    <td>{{ port.version }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <button id="togglePorts" class="btn btn-outline-primary btn-sm btn-toggle" onclick="togglePorts()">View More</button>
         {% endif %}
+      {% else %}
+        <p class="text-muted">No ports found.</p>
+      {% endif %}
+    </div>
     {% endif %}
+
+    <footer>
+      Made with ❤️ for Recon Demo | Powered by Flask
+    </footer>
+  </div>
+
+  <script>
+    function toggleSubs() {
+      const more = document.getElementById("more-subs");
+      const btn = document.getElementById("toggleSubs");
+      if (more.style.display === "none") {
+        more.style.display = "block";
+        btn.innerText = "View Less";
+      } else {
+        more.style.display = "none";
+        btn.innerText = "View More";
+      }
+    }
+
+    function togglePorts() {
+      const more = document.getElementById("more-ports");
+      const btn = document.getElementById("togglePorts");
+      if (more.style.display === "none") {
+        more.style.display = "block";
+        btn.innerText = "View Less";
+      } else {
+        more.style.display = "none";
+        btn.innerText = "View More";
+      }
+    }
+  </script>
 </body>
 </html>
