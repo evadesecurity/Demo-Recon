@@ -1,87 +1,91 @@
 from flask import Flask, request, render_template_string
-import nmap  # pip install python-nmap
+import subprocess
+import socket
+import concurrent.futures
 
 app = Flask(__name__)
 
-HTML = """
+HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>All-in-One Recon Demo</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #f2f2f2; }
-        h1 { color: #333; }
-        input, button { padding: 8px; margin: 5px 0; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; background: #fff; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-        th { background-color: #eee; }
-    </style>
+    <title>All-in-One Recon Demo 🚀</title>
 </head>
 <body>
     <h1>All-in-One Recon Demo 🚀</h1>
-    <form method="POST" action="/scan">
-        <label>Enter Domain or IP:</label><br>
+    <form method="POST">
+        <label>Enter Domain or IP:</label>
         <input type="text" name="target" required>
-        <button type="submit">Scan</button>
+        <button type="submit"> Scan </button>
     </form>
 
-    {% if result %}
-    <h2>Results for: {{ target }}</h2>
-    <table>
-        <tr>
-            <th>Port</th>
-            <th>State</th>
-            <th>Service</th>
-            <th>Version</th>
-        </tr>
-        {% for r in result %}
-        <tr>
-            <td>{{ r.port }}</td>
-            <td>{{ r.state }}</td>
-            <td>{{ r.service }}</td>
-            <td>{{ r.version }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    {% endif %}
-
-    {% if error %}
-    <p style="color:red;">{{ error }}</p>
+    {% if target %}
+        <h2>Results for: {{ target }}</h2>
+        
+        <h3>Subdomains</h3>
+        <pre>{{ subdomains }}</pre>
+        
+        <h3>Port Scan (Nmap)</h3>
+        <table border="1" cellpadding="5">
+            <tr><th>Port</th><th>State</th><th>Service</th><th>Version</th></tr>
+            {% for row in nmap_results %}
+            <tr>
+                <td>{{ row['port'] }}</td>
+                <td>{{ row['state'] }}</td>
+                <td>{{ row['service'] }}</td>
+                <td>{{ row['version'] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
     {% endif %}
 </body>
 </html>
 """
 
-@app.route("/", methods=["GET"])
-def home():
-    return render_template_string(HTML)
-
-@app.route("/scan", methods=["POST"])
-def scan():
-    target = request.form.get("target")
-    scanner = nmap.PortScanner()
-    result_list = []
-    error = None
-
+def run_subfinder(target):
     try:
-        # Lightweight Nmap scan: top 100 ports, TCP connect, service/version detection
-        scanner.scan(hosts=target, arguments='-sT -Pn -sV --top-ports 1000', timeout=150)
-
-        for host in scanner.all_hosts():
-            for proto in scanner[host].all_protocols():
-                ports = scanner[host][proto].keys()
-                for port in ports:
-                    r = scanner[host][proto][port]
-                    result_list.append({
-                        "port": port,
-                        "state": r["state"],
-                        "service": r["name"],
-                        "version": r.get("version", "")
-                    })
+        cmd = ["subfinder", "-silent", "-d", target]
+        result = subprocess.check_output(cmd, text=True, timeout=60)
+        return result.strip() if result else "No subdomains found."
     except Exception as e:
-        error = f"Error during scan: {str(e)}"
+        return f"Error running subfinder: {str(e)}"
 
-    return render_template_string(HTML, result=result_list, target=target, error=error)
+def run_nmap(target):
+    try:
+        cmd = ["nmap", "-sT", "-Pn", "-T4", "-sV", target]
+        result = subprocess.check_output(cmd, text=True, timeout=60)
+        
+        # Parse into structured table
+        rows = []
+        for line in result.splitlines():
+            if "/tcp" in line:
+                parts = line.split()
+                port = parts[0]
+                state = parts[1]
+                service = parts[2] if len(parts) > 2 else ""
+                version = " ".join(parts[3:]) if len(parts) > 3 else ""
+                rows.append({"port": port, "state": state, "service": service, "version": version})
+        return rows
+    except Exception as e:
+        return [{"port": "Error", "state": str(e), "service": "", "version": ""}]
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    target = None
+    subdomains = None
+    nmap_results = []
+
+    if request.method == "POST":
+        target = request.form["target"]
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            subdomain_future = executor.submit(run_subfinder, target)
+            nmap_future = executor.submit(run_nmap, target)
+
+            subdomains = subdomain_future.result()
+            nmap_results = nmap_future.result()
+
+    return render_template_string(HTML_TEMPLATE, target=target, subdomains=subdomains, nmap_results=nmap_results)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
