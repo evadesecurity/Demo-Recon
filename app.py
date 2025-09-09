@@ -26,30 +26,35 @@ def is_valid_target(input_target):
     ipv4_pattern = r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$'
     ipv4_match = re.match(ipv4_pattern, cleaned_target)
     if ipv4_match:
-        # Validate each octet is between 0-255
         try:
+            # Check if each octet is a number between 0-255
             for octet in ipv4_match.groups():
                 if not 0 <= int(octet) <= 255:
-                    return False, "Invalid IP address. Octets must be between 0-255."
-            # Check if it's a PRIVATE IP (show warning)
-            octets = list(map(int, ipv4_match.groups()))
-            # Check for private IP ranges
-            if (octets[0] == 10 or
-                (octets[0] == 172 and 16 <= octets[1] <= 31) or
-                (octets[0] == 192 and octets[1] == 168) or
-                (octets[0] == 127 and octets[1] == 0 and octets[2] == 0 and octets[3] == 1)):
+                    return False, "🕵️ We log every keystroke… including this lame attempt."
+            # If it's a valid IP, check if it's PRIVATE
+            first_octet = int(ipv4_match.group(1))
+            second_octet = int(ipv4_match.group(2))
+            if (first_octet == 10 or
+                (first_octet == 172 and 16 <= second_octet <= 31) or
+                (first_octet == 192 and second_octet == 168) or
+                cleaned_target == "127.0.0.1"):
                 return False, "🕵️ We log every keystroke… including this lame attempt."
-            return True, cleaned_target  # Valid PUBLIC IP
+            # If it's a valid public IP, allow it
+            return True, cleaned_target
         except ValueError:
-            pass  # This will be caught by the final return False
+            # If conversion to int fails, it's invalid
+            return False, "🕵️ We log every keystroke… including this lame attempt."
 
     # 4. Check if it's a valid domain name (e.g., google.com)
-    # A simple but effective check: must contain a dot and only allowed characters
-    domain_pattern = r'^[a-z0-9.-]+\.[a-z]{2,}$'
-    if re.match(domain_pattern, cleaned_target):
-        return True, cleaned_target  # Valid domain
+    # The simplest check: must contain a dot and no spaces or special chars besides hyphen
+    if "." in cleaned_target and " " not in cleaned_target:
+        # Basic character whitelist: letters, numbers, hyphens, dots
+        if re.match(r'^[a-z0-9.-]+$', cleaned_target):
+            # Check that it starts and ends with alphanumeric
+            if cleaned_target[0].isalnum() and cleaned_target[-1].isalnum():
+                return True, cleaned_target
 
-    # 5. If it's NOT a valid IP AND NOT a valid domain → Show Hacker Warning
+    # 5. IF IT'S NOT A VALID IP OR DOMAIN → SHOW WARNING
     return False, "🕵️ We log every keystroke… including this lame attempt."
 
 @app.route("/", methods=["GET", "POST"])
@@ -67,7 +72,7 @@ def index():
         is_valid, validation_result = is_valid_target(raw_target)
         
         if not is_valid:
-            flash(validation_result)  # Show error message
+            flash(validation_result)  # Show warning message
             return render_template("index.html", target=raw_target)
         
         # Use the cleaned target
