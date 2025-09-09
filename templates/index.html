@@ -101,7 +101,7 @@
             </tr>
           </thead>
           <tbody>
-            {% for port in ports %}
+            {% for port in ports[:5] %}
               <tr>
                 <td>{{ port.port }}/tcp</td>
                 <td>{{ port.state }}</td>
@@ -111,7 +111,23 @@
             {% endfor %}
           </tbody>
         </table>
-        <!-- Removed the "View More" logic for ports as it's now handled by the table -->
+        {% if ports|length > 5 %}
+          <div id="more-ports" style="display:none;">
+            <table class="table table-striped table-hover">
+              <tbody>
+                {% for port in ports[5:] %}
+                  <tr>
+                    <td>{{ port.port }}/tcp</td>
+                    <td>{{ port.state }}</td>
+                    <td>{{ port.service }}</td>
+                    <td>{{ port.version }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <button id="togglePorts" class="btn btn-outline-primary btn-sm btn-toggle" onclick="togglePorts()">View More</button>
+        {% endif %}
       {% else %}
         <!-- Only show "No ports found" if there was no error -->
         {% if not nmap_error %}
