@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, flash
 import nmap
 
 app = Flask(__name__)
+app.secret_key = 'evade-security-demo-key-2024'  # <- ADD THIS EXACT LINE
 
 def is_valid_target(input_target):
     """
