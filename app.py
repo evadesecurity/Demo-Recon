@@ -4,70 +4,56 @@ from flask import Flask, render_template, request, flash
 import nmap
 
 app = Flask(__name__)
-# The secret_key line is NOT needed. Removed.
 
 def is_valid_target(input_target):
     """
-    Validates if the input is a likely valid domain name, IPv4, or IPv6 address.
-    This is a basic validation to catch obvious mistakes and malicious input.
+    Validates if the input is a likely valid domain name or IP address.
+    Returns (True, cleaned_target) if valid, (False, error_message) if invalid.
     """
-    # Clean the input: remove http/https and trailing slashes
+    # 1. Clean the input
     original_input = input_target
-    input_target = input_target.strip().lower()
+    cleaned_target = input_target.strip().lower()
+    
     # Remove http://, https://, and trailing slash
-    input_target = re.sub(r'^https?://', '', input_target)
-    input_target = re.sub(r'/$', '', input_target)
-
-    # Basic check for empty or very long input
-    if not input_target or len(input_target) > 253:
-        return False, "Input is too long or empty."
-
-    # Common SSRF and internal IP patterns to BLOCK
+    cleaned_target = re.sub(r'^https?://', '', cleaned_target)
+    cleaned_target = re.sub(r'/$', '', cleaned_target)
+    
+    # 2. Check for obvious garbage or malicious patterns FIRST
     malicious_patterns = [
-        r"^localhost$",
-        r"^127\.\d+\.\d+\.\d+$",
-        r"^10\.\d+\.\d+\.\d+$",
-        r"^172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+$",
-        r"^192\.168\.\d+\.\d+$",
-        r"^0\.\d+\.\d+\.\d+$",
-        r"^169\.254\.\d+\.\d+$",
-        r"^::1$",
-        r"^fc00::",
-        r"^fd00::",
-        r"\.\.",  # Basic path traversal attempt
-        r"[<>'\"]",  # Basic XSS/SQLi attempt
+        r"^127\.",
+        r"^10\.",
+        r"^172\.(1[6-9]|2[0-9]|3[0-1])\.",
+        r"^192\.168\.",
+        r"^0\.",
+        r"^169\.254\.",
+        r"^localhost",
+        r"^::1",
+        r"\.\.",  # Path traversal
+        r"[<>'\"]",  # XSS/SQLi attempts
     ]
-
+    
     for pattern in malicious_patterns:
-        if re.match(pattern, input_target):
-            # Check if the original input was just a URL with http/https
-            if re.match(r'^https?://', original_input) and not re.match(pattern, original_input):
-                # It was just a URL, return the cleaned version
-                return True, input_target
-            else:
-                # It's a real malicious attempt
-                return False, "🕵️ good luck, We log every keystroke… including this lame attempt."
+        if re.search(pattern, cleaned_target):
+            return False, "🕵️ We log every keystroke… including this lame attempt."
 
-    # Regex for valid domain names (e.g., example.com, sub.example.com)
-    domain_regex = r'^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}$'
-    # Regex for valid IPv4 address
-    ipv4_regex = r'^(\d{1,3}\.){3}\d{1,3}$'
-    # Regex for valid IPv6 address (simplified)
-    ipv6_regex = r'^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$'
+    # 3. Check if it's a valid IPv4 address (e.g., 8.8.8.8)
+    ipv4_pattern = r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$'
+    ipv4_match = re.match(ipv4_pattern, cleaned_target)
+    if ipv4_match:
+        # Validate each octet is between 0-255
+        for octet in ipv4_match.groups():
+            if not 0 <= int(octet) <= 255:
+                return False, "Invalid IP address. Octets must be between 0-255."
+        return True, cleaned_target  # Valid IP
 
-    # Check if input matches any valid pattern
-    if (re.match(domain_regex, input_target, re.IGNORECASE) or
-        re.match(ipv4_regex, input_target) or
-        re.match(ipv6_regex, input_target)):
-        # Additional check for valid IPv4 octets
-        if re.match(ipv4_regex, input_target):
-            octets = input_target.split('.')
-            for octet in octets:
-                if not (0 <= int(octet) <= 255):
-                    return False, "Invalid IPv4 address."
-        return True, input_target
+    # 4. Check if it's a valid domain name (e.g., google.com, sub.domain.co.uk)
+    # Simple domain regex - allows letters, numbers, hyphens, and dots
+    domain_pattern = r'^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?)*$'
+    if re.match(domain_pattern, cleaned_target) and '.' in cleaned_target:
+        return True, cleaned_target  # Valid domain
 
-    return False, "Invalid input. Please enter a valid domain name or IP address."
+    # 5. If we get here, it's invalid input
+    return False, "Invalid input. Please enter a valid domain name (e.g., 'example.com') or IP address."
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -78,16 +64,17 @@ def index():
     subfinder_error = None
 
     if request.method == "POST":
-        raw_target = request.form["target"]  # Get the raw input for cleaning
+        raw_target = request.form["target"]
 
-        # --- CRITICAL SECURITY VALIDATION ---
+        # Validate the input
         is_valid, validation_result = is_valid_target(raw_target)
         
         if not is_valid:
-            flash(validation_result) # This will be the error message
-            return render_template("index.html", target=raw_target) # Pass raw input back to show in form
+            flash(validation_result)  # Show error message
+            # Re-render the page with the flashed message
+            return render_template("index.html", target=raw_target)
         
-        # If valid, the validation_result is the cleaned target (e.g., "domain.com")
+        # Use the cleaned target
         target = validation_result
 
         # Run subfinder
@@ -104,7 +91,7 @@ def index():
         except Exception as e:
             subfinder_error = f"Unexpected error running subfinder: {e}"
 
-        # Run nmap using the python-nmap library
+        # Run nmap
         try:
             nm = nmap.PortScanner()
             scan_result = nm.scan(target, arguments='-sT -F -T4 -Pn --host-timeout 2m')
