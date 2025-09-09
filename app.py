@@ -22,41 +22,49 @@ def is_valid_target(input_target):
     if not cleaned_target:
         return False, "Please enter a domain or IP address."
 
-    # 3. Check if it's a valid IPv4 address (e.g., 8.8.8.8)
+    # 3. Check for obviously malicious patterns FIRST
+    malicious_patterns = [
+        r"^127\.",
+        r"^10\.",
+        r"^172\.(1[6-9]|2[0-9]|3[0-1])\.",
+        r"^192\.168\.",
+        r"^0\.",
+        r"^169\.254\.",
+        r"^localhost",
+        r"^::1",
+        r"\.\./",    # Path traversal
+        r"[<>'\"]",  # XSS/SQLi attempts
+    ]
+    
+    for pattern in malicious_patterns:
+        if re.search(pattern, cleaned_target):
+            return False, "🕵️ We log every keystroke… including this lame attempt."
+
+    # 4. Check if it's a valid IPv4 address
     ipv4_pattern = r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$'
     ipv4_match = re.match(ipv4_pattern, cleaned_target)
     if ipv4_match:
         try:
-            # Check if each octet is a number between 0-255
             for octet in ipv4_match.groups():
                 if not 0 <= int(octet) <= 255:
-                    return False, "🕵️ We log every keystroke… including this lame attempt."
-            # If it's a valid IP, check if it's PRIVATE
-            first_octet = int(ipv4_match.group(1))
-            second_octet = int(ipv4_match.group(2))
-            if (first_octet == 10 or
-                (first_octet == 172 and 16 <= second_octet <= 31) or
-                (first_octet == 192 and second_octet == 168) or
-                cleaned_target == "127.0.0.1"):
-                return False, "🕵️ We log every keystroke… including this lame attempt."
-            # If it's a valid public IP, allow it
+                    return False, "Invalid IP address"
             return True, cleaned_target
         except ValueError:
-            # If conversion to int fails, it's invalid
-            return False, "🕵️ We log every keystroke… including this lame attempt."
+            return False, "Invalid IP address"
 
-    # 4. Check if it's a valid domain name (e.g., google.com)
-    # The simplest check: must contain a dot and no spaces or special chars besides hyphen
-    if "." in cleaned_target and " " not in cleaned_target:
-        # Basic character whitelist: letters, numbers, hyphens, dots
+    # 5. Check if it's a valid domain name
+    # Simple check: must contain a dot and only allowed characters
+    if "." in cleaned_target:
+        # Basic character validation
         if re.match(r'^[a-z0-9.-]+$', cleaned_target):
-            # Check that it starts and ends with alphanumeric
-            if cleaned_target[0].isalnum() and cleaned_target[-1].isalnum():
+            # Check it doesn't start/end with hyphen or dot
+            if not (cleaned_target.startswith('-') or cleaned_target.startswith('.') or 
+                    cleaned_target.endswith('-') or cleaned_target.endswith('.')):
                 return True, cleaned_target
 
-    # 5. IF IT'S NOT A VALID IP OR DOMAIN → SHOW WARNING
+    # 6. If we get here, it's invalid input
     return False, "🕵️ We log every keystroke… including this lame attempt."
-
+    
 @app.route("/", methods=["GET", "POST"])
 def index():
     subdomains = []
