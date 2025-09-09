@@ -38,7 +38,7 @@ def is_valid_target(input_target):
     
     for pattern in malicious_patterns:
         if re.search(pattern, cleaned_target):
-            return False, "🕵️ We log every keystroke… including this lame attempt."
+            return False, "🕵️ Good luck, We log every keystroke… including this lame attempt."
 
     # 4. Check if it's a valid IPv4 address
     ipv4_pattern = r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$'
@@ -63,7 +63,7 @@ def is_valid_target(input_target):
                 return True, cleaned_target
 
     # 6. If we get here, it's invalid input
-    return False, "🕵️ We log every keystroke… including this lame attempt."
+    return False, "🕵️ Good luck, We log every keystroke… including this lame attempt."
     
 @app.route("/", methods=["GET", "POST"])
 def index():
