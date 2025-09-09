@@ -38,7 +38,7 @@ def index():
             # -F: Fast mode (scan top 100 ports)
             # -T4: Aggressive timing template
             # --host-timeout 2m: Give up on a host after 2 minutes
-            scan_result = nm.scan(target, arguments='-sT -F -T4 --host-timeout 2m')
+            scan_result = nm.scan(target, arguments='-sT -F -T4 -Pn --host-timeout 2m')
             ports = [] # Reset ports to an empty list for the new scan
 
             # Check if the scan found any hosts
