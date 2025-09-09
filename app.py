@@ -4,11 +4,11 @@ from flask import Flask, render_template, request, flash
 import nmap
 
 app = Flask(__name__)
-app.secret_key = 'evade-security-demo-key-2024'  # <- ADD THIS EXACT LINE
+app.secret_key = 'evade-security-demo-key-2024'  # Required for flash
 
 def is_valid_target(input_target):
     """
-    Validates if the input is a likely valid domain name or IP address.
+    Validates if the input is a valid domain name or IP address.
     Returns (True, cleaned_target) if valid, (False, error_message) if invalid.
     """
     # 1. Clean the input
@@ -22,22 +22,7 @@ def is_valid_target(input_target):
     if not cleaned_target:
         return False, "Please enter a domain or IP address."
 
-    # 3. Check for obviously malicious patterns
-    malicious_patterns = [
-        r"127\.0\.0\.1",
-        r"localhost",
-        r"^10\.", 
-        r"^172\.(1[6-9]|2[0-9]|3[0-1])\.",  # 172.16.0.0 - 172.31.255.255
-        r"^192\.168\.",                       # 192.168.0.0 - 192.168.255.255
-        r"\.\./",                             # Path traversal
-        r"[<>'\"]",                           # XSS/SQLi attempts
-    ]
-    
-    for pattern in malicious_patterns:
-        if re.search(pattern, cleaned_target):
-            return False, "🕵️ We log every keystroke… including this lame attempt."
-
-    # 4. Check if it's a valid IPv4 address (e.g., 8.8.8.8)
+    # 3. Check if it's a valid IPv4 address (e.g., 8.8.8.8)
     ipv4_pattern = r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$'
     ipv4_match = re.match(ipv4_pattern, cleaned_target)
     if ipv4_match:
@@ -46,20 +31,26 @@ def is_valid_target(input_target):
             for octet in ipv4_match.groups():
                 if not 0 <= int(octet) <= 255:
                     return False, "Invalid IP address. Octets must be between 0-255."
-            return True, cleaned_target  # Valid IP
+            # Check if it's a PRIVATE IP (show warning)
+            octets = list(map(int, ipv4_match.groups()))
+            # Check for private IP ranges
+            if (octets[0] == 10 or
+                (octets[0] == 172 and 16 <= octets[1] <= 31) or
+                (octets[0] == 192 and octets[1] == 168) or
+                (octets[0] == 127 and octets[1] == 0 and octets[2] == 0 and octets[3] == 1)):
+                return False, "🕵️ We log every keystroke… including this lame attempt."
+            return True, cleaned_target  # Valid PUBLIC IP
         except ValueError:
-            return False, "Invalid IP address format."
+            pass  # This will be caught by the final return False
 
-    # 5. SIMPLIFIED DOMAIN CHECK - Just check for basic format
-    # Allow anything that looks like a domain with at least one dot
-    if '.' in cleaned_target and len(cleaned_target) > 3:
-        # Basic check for invalid characters
-        if re.search(r'[^a-z0-9\.\-]', cleaned_target):
-            return False, "Invalid characters in domain name."
-        return True, cleaned_target  # Probably a valid domain
+    # 4. Check if it's a valid domain name (e.g., google.com)
+    # A simple but effective check: must contain a dot and only allowed characters
+    domain_pattern = r'^[a-z0-9.-]+\.[a-z]{2,}$'
+    if re.match(domain_pattern, cleaned_target):
+        return True, cleaned_target  # Valid domain
 
-    # 6. If we get here, it's invalid input
-    return False, "Invalid input. Please enter a valid domain name (e.g., 'example.com') or IP address."
+    # 5. If it's NOT a valid IP AND NOT a valid domain → Show Hacker Warning
+    return False, "🕵️ We log every keystroke… including this lame attempt."
 
 @app.route("/", methods=["GET", "POST"])
 def index():
