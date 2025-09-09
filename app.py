@@ -103,7 +103,7 @@ def index():
         # Run nmap
         try:
             nm = nmap.PortScanner()
-            scan_result = nm.scan(target, arguments='-sT -F -T4 -sV -Pn --host-timeout 2m')
+            scan_result = nm.scan(target, arguments='-sT -F -T4 -Pn --host-timeout 2m')
             ports = []
             if 'scan' in scan_result:
                 for host in nm.all_hosts():
